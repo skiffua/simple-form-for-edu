@@ -7,12 +7,12 @@
           label-placement="top"
           style="max-width: 500px; width: 100%"
       >
-        <n-form-item label="Ім’я" path="firstName">
-          <n-input v-model:value="form.firstName" placeholder="Ім’я" />
+        <n-form-item label="Ім’я" path="name">
+          <n-input v-model:value="form.name" placeholder="Ім’я" />
         </n-form-item>
 
-        <n-form-item label="Прізвище" path="lastName">
-          <n-input v-model:value="form.lastName" placeholder="Прізвище" />
+        <n-form-item label="Прізвище" path="last_name">
+          <n-input v-model:value="form.last_name" placeholder="Прізвище" />
         </n-form-item>
 
         <n-form-item label="Телефон" path="phone">
@@ -24,7 +24,7 @@
           />
         </n-form-item>
 
-        <n-form-item label="Номер картки" path="cardNumber">
+        <n-form-item label="Номер картки" path="card">
           <n-input
               v-model:value="formattedCard"
               placeholder="2135-2365-4545-4545"
@@ -38,25 +38,41 @@
         </n-form-item>
       </n-form>
     </div>
+
+    <UserTable :refreshFlag="refreshFlag" />
   </n-message-provider>
 </template>
 
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useMessage, NForm, NFormItem, NInput, NButton, NMessageProvider } from 'naive-ui'
+import { ref } from 'vue';
+import { useMessage, NForm, NFormItem, NInput, NButton, NMessageProvider } from 'naive-ui';
+
+import UserTable from './UserTable.vue';
+
+interface Form {
+  id: string;
+  name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  card: string;
+}
 
 const message = useMessage()
 
-const form = ref({
-  firstName: '',
-  lastName: '',
+const form = ref<Form>({
+  id: '',
+  name: '',
+  last_name: '',
+  email: '',
   phone: '',
-  cardNumber: ''
+  card: ''
 })
 
 const formattedPhone = ref('')
 const formattedCard = ref('')
+const refreshFlag = ref(0)
 
 function onPhoneInput(value: string) {
   const digits = value.replace(/\D/g, '').slice(0, 12)
@@ -74,18 +90,48 @@ function onCardInput(value: string) {
   const digits = value.replace(/\D/g, '').slice(0, 16)
   const parts = digits.match(/.{1,4}/g) || []
   formattedCard.value = parts.join('-')
-  form.value.cardNumber = digits
+  form.value.card = digits
 }
 
-function handleSubmit() {
-  message.success(`Форма надіслана!`)
-  console.log('Дані:', form.value)
+async function handleSubmit() {
+  try {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/users`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(form.value)
+    })
+
+    if (!res.ok) {
+      throw new Error('Не вдалося створити користувача')
+    }
+
+    message.success('Користувача створено успішно!')
+    console.log('Дані:', form.value)
+
+    form.value = {
+      id: '',
+      name: '',
+      last_name: '',
+      phone: '',
+      card: '',
+      email: '',
+    }
+
+    formattedPhone.value = '';
+    formattedCard.value = '';
+
+    refreshFlag.value++
+  } catch (err) {
+    message.error('Помилка при створенні користувача')
+    console.error(err)
+  }
 }
 </script>
 
 <style scoped>
 .form-wrapper {
-  min-height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
